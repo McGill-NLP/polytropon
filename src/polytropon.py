@@ -8,6 +8,7 @@ from torch import nn
 from adapters import (
     HyperLoRALinear,
     SkilledLoRALinear,
+    SkilledLTSFTLinear,
 )
 from utils import replace_layers, inform_layers
 
@@ -15,7 +16,8 @@ from utils import replace_layers, inform_layers
 logger = logging.getLogger(__name__)
 
 VARIANT2CLASS = {
-    "hyperformer": HyperLoRALinear
+    "hyperformer": (HyperLoRALinear, True),
+    "sparse": (SkilledLTSFTLinear, False),
 }
 
 
@@ -40,17 +42,17 @@ class SkilledMixin(nn.Module):
             for p in self.model.parameters():
                 p.requires_grad = False
 
-        adapter_class = VARIANT2CLASS.get(skilled_variant, SkilledLoRALinear)
+        adapter_class, only_attention = VARIANT2CLASS.get(skilled_variant, (SkilledLoRALinear, True))
         self.adapter_class = adapter_class
         skills = self.get_skills(custom_skills)
-        replace_layers(self.model, adapter_class, n_tasks, n_skills, skills)
+        replace_layers(self.model, adapter_class, n_tasks, n_skills, skills, only_attention=only_attention)
 
         if state_dict is not None:
             self.model.load_state_dict(state_dict, strict=False)
             self.model.tie_weights()
 
     def get_skills(self, custom_skills):
-        if self.skilled_variant in ["learned", "hyper"]:
+        if self.skilled_variant in ["learned", "hyper", "sparse"]:
             # skills are computed inside each module
             skills = None
         elif self.skilled_variant == "shared":
@@ -104,14 +106,12 @@ if __name__ == "__main__":
     from transformers import T5Tokenizer, T5ForConditionalGeneration
     tokenizer = T5Tokenizer.from_pretrained("t5-small")
     model = T5ForConditionalGeneration.from_pretrained("t5-small")
-    model_learned = SkilledMixin(model, n_tasks=2, n_skills=2)
     inputs = ["Tell me, oh Muse, of that ingenious hero who travelled far and wide after he had sacked the famous town of Troy.",
         "Many cities did he visit, and many were the nations with whose manners and customs he was acquainted."]
     inputs = tokenizer(inputs, return_tensors="pt", padding=True)
     task_ids = torch.LongTensor([0, 1])
-    logger.warning("forward learned: %s", model_learned.forward(task_ids, labels=inputs["input_ids"], **inputs))
-    logger.warning("generate learned: %s", model_learned.generate(task_ids, **inputs))
 
-    model_hyper = SkilledMixin(model, n_tasks=2, n_skills=2, skilled_variant="hyper")
-    logger.warning("forward hyper: %s", model_hyper.forward(task_ids, labels=inputs["input_ids"], **inputs))
-    logger.warning("generate hyper: %s", model_hyper.generate(task_ids, **inputs))
+    for skilled_variant in ["learned", "hyper", "sparse", "shared", "private"]:
+        skilled_model = SkilledMixin(model, n_tasks=2, n_skills=2, skilled_variant=skilled_variant)
+        logger.warning("forward %s: %s", skilled_variant, skilled_model.forward(task_ids, labels=inputs["input_ids"], **inputs))
+        logger.warning("generate %s: %s", skilled_variant, skilled_model.generate(task_ids, **inputs))

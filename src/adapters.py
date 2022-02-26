@@ -1,4 +1,6 @@
 import math
+import random
+import itertools
 from typing import Optional
 
 import torch
@@ -168,7 +170,73 @@ class SkilledLoRALinear(SkilledModule):
 
         return output
 
-    def extra_repr(self) -> str:
-        return 'in_features={}, out_features={}, bias={}'.format(
-            self.in_features, self.out_features, self.bias is not None
-        )
+
+class SkilledLTSFTLinear(SkilledModule):
+    """ Applies a linear function parameterised by a base bias
+    and a weighted average of base and skill weights
+    """
+    __constants__ = ['in_features', 'out_features']
+    in_features: int
+    out_features: int
+    weight: Tensor
+
+    def __init__(self,
+                 n_tasks: int,
+                 n_skills: int,
+                 skills: Optional[Tensor],
+                 weight: Tensor,
+                 bias: Optional[Tensor],
+                 sparsity: float = 0.1,
+                 freeze: bool = True
+                 ) -> None:
+        super().__init__()
+        self.out_features, self.in_features = weight.shape
+
+        if skills is None:
+            self.skill_logits = nn.Parameter(torch.empty((n_tasks, n_skills)).uniform_(-1e-3, 1e-3))
+            self.is_learned = True
+        else:
+            self.register_buffer("skill_logits", skills)
+            self.is_learned = False
+
+        self.weight = nn.Parameter(weight.data)
+        self.weight.requires_grad = not freeze
+
+        indices = itertools.product(range(self.out_features * self.in_features), range(n_skills))
+        k = int(self.out_features * self.in_features * n_skills * sparsity)
+        indices = random.sample(list(indices), k=k)
+        indices = torch.LongTensor(indices).T
+        values = torch.zeros((k, ))
+        skills_weight = torch.sparse_coo_tensor(indices, values, (self.out_features * self.in_features, n_skills))
+        self.skills_weight = nn.Parameter(skills_weight.coalesce())
+
+        if bias is not None:
+            self.bias = nn.Parameter(bias.data)
+            self.bias.requires_grad = not freeze
+        else:
+            self.register_parameter('bias', None)
+
+    def forward(self, input: Tensor) -> Tensor:
+        # Provisions for inputs repeated for generation
+        assert input.size()[0] % self.task_ids.size(0) == 0
+        repeats = input.size()[0] // self.task_ids.size(0)
+        if repeats > 1:
+            self.task_ids = torch.repeat_interleave(self.task_ids, repeats, dim=0)
+
+        skill_logits = self.skill_logits[self.task_ids]
+        if self.is_learned:
+            if self.training:
+                skill_logits = RelaxedBernoulli(temperature=1., logits=skill_logits).rsample()
+            else:
+                skill_logits = torch.sigmoid(skill_logits)
+        skill_logits = skill_logits / (skill_logits.sum(dim=-1, keepdim=True) + EPS)
+
+        skills_weight = torch.sparse.mm(self.skills_weight, skill_logits.T).T.view(input.size()[0], self.in_features, self.out_features)
+        output = torch.matmul(input, skills_weight) # bsi,bio->bso
+        output = F.linear(input, self.weight, self.bias) + output
+
+        # TODO: densify at the end
+        # skills_weight = torch.smm(self.skills_weight, skill_logits.T)
+        # skills_weight = torch.transpose(skills_weight, 1, 0)
+
+        return output
