@@ -11,10 +11,13 @@ pip install -e .
 ## Usage
 
 ```python
-from polytropon import SkilledModel
+# load any pretrained model from transformers
+from transformers import T5ForConditionalGeneration
+model = T5ForConditionalGeneration.from_pretrained("t5-small")
 
-model = SkilledModel.from_pretrained(
-  pretrained_model_name_or_path,
+# merge it with polytropon
+model = SkilledMixin(
+  model,
   n_tasks,
   n_skills,
 )
