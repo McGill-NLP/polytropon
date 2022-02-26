@@ -7,10 +7,22 @@ from torch import nn
 from torch.distributions.beta import Beta
 from torch.distributions.relaxed_bernoulli import RelaxedBernoulli
 
-from transformers import AutoModel
+from transformers import (
+    AutoModel,
+    AutoModelForPreTraining,
+    AutoModelWithLMHead,
+    AutoModelForSequenceClassification,
+    AutoModelForQuestionAnswering,
+    AutoModelForTokenClassification,
+)
 
-from adapters import HyperLoRALinear, SkilledLoRALinear, EPS
+from adapters import (
+    HyperLoRALinear,
+    SkilledLoRALinear,
+    EPS,
+)
 from utils import replace_layers, inform_layers
+
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +132,20 @@ class SkilledMixin:
         return logp
 
 
-class Polytropon(SkilledMixin, AutoModel):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+class SkilledModel(SkilledMixin, AutoModel):
+    """AutoModel with latent skills for multitask learning"""
+
+class SkilledModelForPreTraining(SkilledMixin, AutoModelForPreTraining):
+    """AutoModelForPreTraining with latent skills for multitask learning"""
+
+class SkilledModelWithLMHead(SkilledMixin, AutoModelWithLMHead):
+    """AutoModelWithLMHead with latent skills for multitask learning"""
+
+class SkilledModelForSequenceClassification(SkilledMixin, AutoModelForSequenceClassification):
+    """AutoModelForSequenceClassification with latent skills for multitask learning"""
+
+class SkilledModelForQuestionAnswering(SkilledMixin, AutoModelForQuestionAnswering):
+    """AutoModelForQuestionAnswering with latent skills for multitask learning"""
+
+class SkilledModelForTokenClassification(SkilledMixin, AutoModelForTokenClassification):
+    """AutoModelForTokenClassification with latent skills for multitask learning"""
