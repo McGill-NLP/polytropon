@@ -3,7 +3,7 @@ def replace_layers(model, old, new_linear, n_skills, n_tasks):
         if len(list(module.children())) > 0:
             replace_layers(module, old, new_linear, n_skills, n_tasks)
 
-        if isinstance(module, old) and name in ["k_proj", "v_proj", "q_proj", "out_proj"]:
+        if isinstance(module, old) and name in ["k_proj", "v_proj", "q_proj", "out_proj", "k", "v", "q", "o"]:
             new = new_linear(n_skills, module.weight, module.bias, n_tasks)
             setattr(model, name, new)
 
