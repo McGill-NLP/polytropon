@@ -34,7 +34,7 @@ class SkilledMixin:
         pretrained_model_name_or_path: str,
         n_tasks: int,
         n_skills: int,
-        skilled_variant: str,
+        skilled_variant: str = "learned",
         finegrained: bool = False,
         custom_skills: str = None,
         **kwargs,
@@ -133,7 +133,8 @@ class SkilledMixin:
 
 
 class SkilledModel(SkilledMixin, AutoModel):
-    """AutoModel with latent skills for multitask learning"""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class SkilledModelForPreTraining(SkilledMixin, AutoModelForPreTraining):
     """AutoModelForPreTraining with latent skills for multitask learning"""
