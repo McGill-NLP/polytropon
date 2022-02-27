@@ -1,6 +1,6 @@
 import logging
 import math
-import scipy
+from scipy import special
 
 import torch
 from torch import nn
@@ -24,11 +24,11 @@ VARIANT2CLASS = {
 class SkilledMixin(nn.Module):
     def __init__(
         self,
-        model,
+        model: nn.Module,
         n_tasks: int,
         n_skills: int,
         skilled_variant: str = "learned",
-        freeze_pretrained: bool = True,
+        freeze: bool = True,
         custom_skills: str = None,
         state_dict = None,
     ):
@@ -38,7 +38,7 @@ class SkilledMixin(nn.Module):
         self.n_skills = n_skills
         self.skilled_variant = skilled_variant
 
-        if freeze_pretrained:
+        if freeze:
             for p in self.model.parameters():
                 p.requires_grad = False
 
@@ -70,23 +70,23 @@ class SkilledMixin(nn.Module):
         inform_layers(self.model, self.adapter_class, task_ids)
         return self.model.generate(*args, **kwargs)
 
-    def forward(self, task_ids, *args, prior="none", **kwargs):
+    def forward(self, task_ids, *args, add_prior=False, **kwargs):
         inform_layers(self.model, self.adapter_class, task_ids)
         outputs = self.model.forward(*args, **kwargs)
 
-        if self.training and self.skilled_variant == "learned" and prior == "ibp":
+        if self.training and self.skilled_variant == "learned" and add_prior:
             aux_loss = [self.neg_log_IBP(p) for n, p in self.model.named_parameters() if "skill_logits" in n]
-            outputs.loss += torch.cat(aux_loss).sum()
+            outputs.loss += torch.stack(aux_loss).sum()
 
         return outputs
 
     def neg_log_IBP(self, matrix, alpha=3.):
-        """ Calculate IBP prior contribution log P(Z|alpha)
+        """ Calculate IBP prior contribution - log P(Z|alpha)
             Based on https://github.com/davidandrzej/PyIBP/blob/master/PyIBP.py """
         N, _ = matrix.shape
         m = matrix.sum(dim=0)
         m = m[m.nonzero()].squeeze()
-        K = m.shape
+        K = len(m)
         def log_factorial(value):
             return torch.lgamma(value + 1)
         logp = 0.
@@ -98,7 +98,7 @@ class SkilledMixin(nn.Module):
 
         logp -= alpha * sum([float(1) / i for i in range(1, N + 1)])
         logp += (log_factorial(N - m) + log_factorial(m - 1)).sum()
-        logp -= scipy.special.gammaln(N + 1) * K
+        logp -= special.gammaln(N + 1) * K
         return - logp
 
 
@@ -113,5 +113,5 @@ if __name__ == "__main__":
 
     for skilled_variant in ["learned", "hyper", "sparse", "shared", "private"]:
         skilled_model = SkilledMixin(model, n_tasks=2, n_skills=2, skilled_variant=skilled_variant)
-        logger.warning("forward %s: %s", skilled_variant, skilled_model.forward(task_ids, labels=inputs["input_ids"], **inputs))
+        logger.warning("forward %s: %s", skilled_variant, skilled_model.forward(task_ids, labels=inputs["input_ids"], add_prior=True, **inputs))
         logger.warning("generate %s: %s", skilled_variant, skilled_model.generate(task_ids, **inputs))

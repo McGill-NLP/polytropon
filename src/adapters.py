@@ -186,7 +186,7 @@ class SkilledLTSFTLinear(SkilledModule):
                  skills: Optional[Tensor],
                  weight: Tensor,
                  bias: Optional[Tensor],
-                 sparsity: float = 0.1,
+                 density: float = 0.1,
                  freeze: bool = True
                  ) -> None:
         super().__init__()
@@ -203,7 +203,7 @@ class SkilledLTSFTLinear(SkilledModule):
         self.weight.requires_grad = not freeze
 
         indices = itertools.product(range(self.out_features * self.in_features), range(n_skills))
-        k = int(self.out_features * self.in_features * n_skills * sparsity)
+        k = int(self.out_features * self.in_features * n_skills * density)
         indices = random.sample(list(indices), k=k)
         indices = torch.LongTensor(indices).T
         values = torch.zeros((k, ))
@@ -234,9 +234,5 @@ class SkilledLTSFTLinear(SkilledModule):
         skills_weight = torch.sparse.mm(self.skills_weight, skill_logits.T).T.view(input.size()[0], self.in_features, self.out_features)
         output = torch.matmul(input, skills_weight) # bsi,bio->bso
         output = F.linear(input, self.weight, self.bias) + output
-
-        # TODO: densify at the end
-        # skills_weight = torch.smm(self.skills_weight, skill_logits.T)
-        # skills_weight = torch.transpose(skills_weight, 1, 0)
 
         return output
