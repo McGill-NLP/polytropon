@@ -1,6 +1,6 @@
 # Polytropon: Combining Modular Skills in Multitask Learning
 
-[**Installation**](#installation) | [**Usage**](#usage) | [**Cite**](#cite) | [**Paper**](https://github.com/McGill-NLP/polytropon/media/paper.pdf)
+[**Installation**](#installation) | [**Usage**](#usage) | [**Cite**](#cite) | [**Paper**](media/paper.pdf)
 
 
 ## Installation
