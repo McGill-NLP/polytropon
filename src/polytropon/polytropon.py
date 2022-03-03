@@ -5,12 +5,12 @@ from scipy import special
 import torch
 from torch import nn
 
-from adapters import (
+from .adapters import (
     HyperLoRALinear,
     SkilledLoRALinear,
     SkilledLTSFTLinear,
 )
-from utils import replace_layers, inform_layers
+from .utils import replace_layers, inform_layers
 
 
 logger = logging.getLogger(__name__)
