@@ -6,6 +6,12 @@
 ## Installation
 
 ```python
+pip install git+https://github.com/McGill-NLP/polytropon
+```
+
+Otherwise, if you wish to clone the repo:
+
+```python
 git clone https://github.com/McGill-NLP/polytropon.git
 cd polytropon
 pip install -e .
@@ -32,7 +38,7 @@ model = SkilledMixin(
 
 ```
 @misc{ponti2022combining,
-      title={Combining Modular Skills in Multitask Learning}, 
+      title={Combining Modular Skills in Multitask Learning},
       author={Edoardo M. Ponti and Alessandro Sordoni and Yoshua Bengio and Siva Reddy},
       year={2022},
       eprint={2202.13914},
