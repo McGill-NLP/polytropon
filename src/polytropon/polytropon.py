@@ -83,6 +83,10 @@ class SkilledMixin(nn.Module):
     def neg_log_IBP(self, matrix, alpha=3.):
         """ Calculate IBP prior contribution - log P(Z|alpha)
             Based on https://github.com/davidandrzej/PyIBP/blob/master/PyIBP.py """
+        matrix = torch.sigmoid(matrix)
+        matrix_hard = (matrix > .5).float()
+        matrix = matrix_hard - matrix.detach() + matrix
+
         N, _ = matrix.shape
         m = matrix.sum(dim=0)
         m = m[m.nonzero()].squeeze()
