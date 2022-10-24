@@ -80,29 +80,29 @@ class SkilledMixin(nn.Module):
 
         return outputs
 
-    def neg_log_IBP(self, matrix, alpha=3.):
-        """ Calculate IBP prior contribution - log P(Z|alpha)
+    @staticmethod
+    def log_factorial(value):
+        return torch.lgamma(value + 1)
+
+    def neg_log_IBP(self, matrix):
+        """ Calculate IBP prior contribution - log P(Z)
             Based on https://github.com/davidandrzej/PyIBP/blob/master/PyIBP.py """
+        
+        # discretise
+        N, K = matrix.shape
         matrix = torch.sigmoid(matrix)
         matrix_hard = (matrix > .5).float()
-        matrix = matrix_hard - matrix.detach() + matrix
+        Z = matrix_hard - matrix.detach() + matrix
 
-        N, _ = matrix.shape
-        m = matrix.sum(dim=0)
+        # penalise non-unique histories (columns of Z)
+        _, Khs = Z.unique(dim=1, return_counts=True)
+        logp = - self.log_factorial(Khs).sum()
+
+        # total feature usage
+        m = Z.sum(dim=0)
         m = m[m.nonzero()].squeeze()
-        K = len(m)
-        def log_factorial(value):
-            return torch.lgamma(value + 1)
-        logp = 0.
-        logp += K * math.log(alpha)
+        logp += (self.log_factorial(N - m) + self.log_factorial(m - 1)).sum()     
 
-        for n in range(N):
-            new_features = torch.clamp(matrix[n] - matrix.sum(0), min=0., max=1.).sum()
-            logp -= log_factorial(new_features)
-
-        logp -= alpha * sum([float(1) / i for i in range(1, N + 1)])
-        logp += (log_factorial(N - m) + log_factorial(m - 1)).sum()
-        logp -= special.gammaln(N + 1) * K
         return - logp
 
 
