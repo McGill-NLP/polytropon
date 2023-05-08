@@ -1,7 +1,10 @@
 # Polytropon: Combining Modular Skills in Multitask Learning
 
-[**Installation**](#installation) | [**Usage**](#usage) | [**Cite**](#cite) | [**Paper**](media/paper.pdf)
+[**Updates**](#updates) | [**Installation**](#installation) | [**Usage**](#usage) | [**Cite**](#cite) | [**Paper**](media/paper.pdf)
 
+## Updates
+
+23/05/03: *New repository!* The current repository is outdated. We recommend to use instead the full implementation of Polytropon at https://github.com/microsoft/mttl
 
 ## Installation
 
